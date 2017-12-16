@@ -7,18 +7,20 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
-plt.ioff()
-fig = plt.figure(figsize=(18,12), dpi=600)
-plt.title('SpringerSim')
-plt.ylabel('fps / mm / MPa')
-
 # Settings
+
+barrelDiameter = 0.0127 # m
+
+dartMass = 0.0012 # kg
+dartFriction = 2.5 # N
+
+dt = 0.00001 # s
+maxTime = 0.1 # s
 
 # Caliburn
 barrelLength = 0.321754 # m 
 barrelLength = 3.5
-plungerDiameter = 0.03495 # m
-barrelDiameter = 0.0127 # m
+#plungerDiameter = 0.03495 # m
 plungerDraw = 0.15138
 precompression = 0.040818
 #springRate = 679.651333723 # N/m k26
@@ -29,7 +31,7 @@ plungerRodMass = 0.04 # kg
 plungerFriction = 0.5 # N
 deadspace = 0.00000792152 # cubic meters
 
-plungerDiameter = 0.03 # m
+plungerDiameter = 0.032 # m Optimal?
 
 # Sentinel
 #plungerMass = 0.03
@@ -45,13 +47,6 @@ plungerDiameter = 0.03 # m
 #barrelLength = 12*.0254
 #springRate = 2*9.8/plungerDraw
 
-dartMass = 0.0012 # kg
-dartFriction = 2.5 # N
-
-dt = 0.00001
-maxTime = 0.1
-
-
 pi = 3.14159265358979323
 atm = 101325
 ft = 3.28084
@@ -64,7 +59,6 @@ plungerPositions = np.full(arrayLength, np.nan, dtype=float)
 plungerVelocities = np.full(arrayLength, np.nan, dtype=float)
 dartPositions = np.full(arrayLength, np.nan, dtype=float)
 dartVelocities = np.full(arrayLength, np.nan, dtype=float)
-
 
 def simulate():
     timestart = clock()
@@ -144,6 +138,12 @@ def simulate():
 #    plt.plot(xAxis, dartPositions*200, label=variableName+"dart position (mm)")
     plt.plot(xAxis, pressures*atm/1000, label=variableName+"pressure (MPa)")
     
+    
+plt.ioff()
+fig = plt.figure(figsize=(18,12), dpi=600)
+plt.title('SpringerSim')
+plt.ylabel('fps / mm / MPa')
+
 iterationArray1 = matplotlib.mlab.frange(0.08,0.25,0.001)
 maxFPS = np.zeros(len(iterationArray1), dtype=float)
 maxP = np.zeros(len(iterationArray1), dtype=float)
