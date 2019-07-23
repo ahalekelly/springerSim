@@ -18,12 +18,11 @@ dartDynamicFriction_N = 1 # N
 
 dt_s = 0.00001 # s
 maxTime_s = 0.1 # s
-#maxTime_s = 0.01 # s
 
 temperature_C = 25 # C
 
 # Caliburn
-barrelLength_m = 0.33
+barrelLength_m = 0.33 # 13in
 plungerDiameter_m = 0.034798 # m
 plungerDraw_m = 0.15138
 precompression_m = 0.040818
@@ -51,12 +50,12 @@ plungerFriction_N = 0.5 # N
 '''
 
 # Sentinel
-#plungerMass_kg = 0.03
+#plungerRodMass_kg = 0.03
 #plungerDiameter_m = 1.25*.0254
 #plungerDraw_m = 3.25*.0254
 
 # Nite Finder
-#plungerMass_kg = 0.0001
+#plungerRodMass_kg = 0.0001
 #plungerDiameter_m = 1*.0254
 #plungerDraw_m = 2*.0254
 #precompression_m = 0
@@ -69,7 +68,7 @@ atm = 101325
 ft = 3.28084
 
 
-def airDensity(temperature_C, pressure):
+def airDensity_kgpm3(temperature_C, pressure):
     R=287.05 # Specific gas constant, J/(kg*K)
     C_K_offset=273.15
 #    print((pressure+1)*atm, "Pa", temperature_C+C_K_offset,"K")
@@ -89,14 +88,27 @@ def simulate():
     dartVelocities_mps = np.full(arrayLength, np.nan, dtype=float)
     bernoulliPressureDifferences_atm = np.full(arrayLength, np.nan, dtype=float)
 
+    PE_Spring_J = np.full(arrayLength, np.nan, dtype=float)
+    KE_Plunger_J = np.full(arrayLength, np.nan, dtype=float)
+    KE_Dart_J = np.full(arrayLength, np.nan, dtype=float)
+    KE_PlungerTubeAir_J = np.full(arrayLength, np.nan, dtype=float)
+    KE_BarrelAir_J = np.full(arrayLength, np.nan, dtype=float)
+    PE_PlungerTubePressure_J = np.full(arrayLength, np.nan, dtype=float)
+    PE_BarrelPressure_J = np.full(arrayLength, np.nan, dtype=float)
+    TE_PlungerFriction_J = np.full(arrayLength, np.nan, dtype=float)
+    TE_DartFriction_J = np.full(arrayLength, np.nan, dtype=float)
+    TE_AirFriction_J = np.full(arrayLength, np.nan, dtype=float)
+    totalEnergy_J = np.full(arrayLength, np.nan, dtype=float)
+
     starttime = perf_counter()
     plungerRadius_m = plungerDiameter_m/2
     barrelRadius_m = barrelDiameter_m/2
     plungerStart_m = precompression_m + plungerDraw_m
-    plungerMass_kg = plungerRodMass_kg + springMass_kg/2
+    effectivePlungerMass_kg = plungerRodMass_kg + springMass_kg/2
     springRate_Npm = springForce_N/plungerStart_m # N/m
     print(plungerStart_m, springRate_Npm)
     plungerForce_N = plungerStart_m * springRate_Npm - plungerFriction_N
+    springPotentialEnergy_J = 0.5*springRate_Npm*plungerStart_m**2
     
     times_s[0] = 0
     plungerPressures_atm[0] = 0
@@ -119,7 +131,7 @@ def simulate():
     
         
         if plungerPositions_m[i-1] > precompression_m:
-            plungerVelocities_mps[i] = plungerVelocities_mps[i-1] + plungerForce_N/plungerMass_kg*dt_s
+            plungerVelocities_mps[i] = plungerVelocities_mps[i-1] + plungerForce_N/effectivePlungerMass_kg*dt_s
             plungerPositions_m[i] = max(precompression_m, plungerPositions_m[i-1] - plungerVelocities_mps[i]*dt_s)
             if plungerPositions_m[i] == precompression_m:
                 print("plunger hit end at", dartPositions_m[i-1]*ft*12)
@@ -127,14 +139,15 @@ def simulate():
             plungerVelocities_mps[i] = 0
             plungerPositions_m[i] = precompression_m
         
-        plungerVolumes_m3[i] = plungerDeadspace_m3 + (plungerPositions_m[i]-precompression_m) * pi * plungerRadius_m**2
-        
-        barrelVolumes_m3[i] = barrelDeadspace_m3 + dartPositions_m[i-1] * pi * barrelRadius_m**2
 
+        plungerVolumes_m3[i] = plungerDeadspace_m3 + (plungerPositions_m[i]-precompression_m) * pi * plungerRadius_m**2
+        barrelVolumes_m3[i] = barrelDeadspace_m3 + dartPositions_m[i-1] * pi * barrelRadius_m**2
         averagePressures_atm[i] = airVolume/(plungerVolumes_m3[i]+barrelVolumes_m3[i])-1
 
-        bernoulliPressureDifferences_atm[i] = (0.5 * airDensity(temperature_C, plungerPressures_atm[i-1]) * plungerVelocities_mps[i-1]**2 - 0.5 * airDensity(temperature_C, barrelPressures_atm[i-1]) * (plungerVelocities_mps[i-1]*plungerRadius_m**2/barrelRadius_m**2)**2)/atm
-#        bernoulliPressureDifferences_atm[i] = (0.5 * airDensity(temperature_C, averagePressures_atm[i-1]) * plungerVelocities_mps[i-1]**2 - 0.5 * airDensity(temperature_C, averagePressures_atm[i-1]) * (plungerVelocities_mps[i-1]*plungerRadius_m**2/barrelRadius_m**2)**2)/atm
+        ptAirDensity_kgpm3 = airDensity_kgpm3(temperature_C, plungerPressures_atm[i-1])
+        barrelAirDensity_kgpm3 = airDensity_kgpm3(temperature_C, barrelPressures_atm[i-1])
+        bernoulliPressureDifferences_atm[i] = (0.5 * ptAirDensity_kgpm3 * plungerVelocities_mps[i-1]**2 - 0.5 * barrelAirDensity_kgpm3 * (plungerVelocities_mps[i-1]*plungerRadius_m**2/barrelRadius_m**2)**2)/atm
+#        bernoulliPressureDifferences_atm[i] = (0.5 * airDensity_kgpm3(temperature_C, averagePressures_atm[i-1]) * plungerVelocities_mps[i-1]**2 - 0.5 * airDensity_kgpm3(temperature_C, averagePressures_atm[i-1]) * (plungerVelocities_mps[i-1]*plungerRadius_m**2/barrelRadius_m**2)**2)/atm
 #        bernoulliPressureDifferences_atm[i] = 0
         # averagePressure = (plungerVolume * plungerPressure + barrelVolume * barrelPressure) / (plungerVolume+barrelVolume)
 
@@ -162,9 +175,27 @@ def simulate():
             
         dartVelocities_mps[i] = dartVelocities_mps[i-1] + dartForce/dartMass_kg*dt_s
         dartPositions_m[i] = dartPositions_m[i-1] + dartVelocities_mps[i]*dt_s
+
+        #Potential Energy
+        PE_Spring_J[i] = 0.5*springRate_Npm*plungerPositions_m[i]**2
+        PE_PlungerTubePressure_J[i] = plungerPressures_atm[i]*atm*plungerVolumes_m3[i]
+        PE_BarrelPressure_J[i] = barrelPressures_atm[i]*atm*barrelVolumes_m3[i]
+
+        #Kinetic Energy
+        KE_Plunger_J[i] = 0.5*effectivePlungerMass_kg*plungerVelocities_mps[i]**2
+        KE_Dart_J[i] = 0.5*dartMass_kg*dartVelocities_mps[i]**2
+        KE_PlungerTubeAir_J[i] = 0.5 * ptAirDensity_kgpm3*plungerVolumes_m3[i] * plungerVelocities_mps[i]**2
+        KE_BarrelAir_J[i] = 0.5 * barrelAirDensity_kgpm3*barrelVolumes_m3[i] * dartVelocities_mps[i]**2
+
+        #Thermal Energy
+        TE_PlungerFriction_J[i] = plungerFriction_N*(plungerStart_m-plungerPositions_m[i])
+        TE_DartFriction_J[i] = dartDynamicFriction_N*dartPositions_m[i]
+        TE_AirFriction_J[i] = 0
+
+        totalEnergy_J[i] = PE_Spring_J[i] + PE_PlungerTubePressure_J[i] + PE_BarrelPressure_J[i] + KE_Plunger_J[i] + KE_Dart_J[i] + KE_PlungerTubeAir_J[i] + KE_BarrelAir_J[i] + TE_PlungerFriction_J[i] + TE_DartFriction_J[i] + TE_AirFriction_J[i]
+
         
 #        print(plungerPositions_m[i]-plungerStart_m, plungerVolumes_m3[i], plungerPressures_atm[i], barrelPressures_atm[i], dartVelocities_mps[i])
-        pass
         
     print(i, "cycles, max", arrayLength)
     print(perf_counter()-starttime, "s runtime")
@@ -175,9 +206,13 @@ def simulate():
 #    maxP[j] = np.amax(pressures[0:i])*atm/1000
     idealBarrelLength[j] = dartPositions_m[np.argmax(dartVelocities_mps[0:i])]
     print(maxFPS[j], "fps peak at", idealBarrelLength[j]*1000, "mm")
-    print(dartPositions_m[i])
+    print(round(springPotentialEnergy_J,2), "J", round(totalEnergy_J[i],2), "J")
 
-    variableName = "Plunger Draw: "+str(round(v*1000,1))+" mm, "
+    plt.ioff()
+    fig = plt.figure(figsize=(18,12), dpi=600)
+    plt.title('SpringerSim')
+    plt.ylabel('fps / mm / MPa')
+    variableName = "Plunger Draw: "+str(round(v*1000,1))+" mm "
     xAxis = times_s
     plt.xlabel('Time elapsed (seconds)')
 #    xAxis = dartPositions_m*ft*12
@@ -187,11 +222,19 @@ def simulate():
 #    plt.plot(xAxis, dartPositions_m*200, label=variableName+"dart position (mm)")
 #    plt.plot(xAxis, pressures*atm/1000, label=variableName+"pressure (MPa)")
     
-    
-plt.ioff()
-fig = plt.figure(figsize=(18,12), dpi=600)
-plt.title('SpringerSim')
-plt.ylabel('fps / mm / MPa')
+    plt.legend(loc='lower right', markerscale=100)
+    fig.savefig('springerSim '+str(datetime.now().replace(microsecond=0)).replace(':','-')+'.png', bbox_inches='tight')
+
+    plt.clf()
+
+    plt.title('Conservation of Energy')
+    plt.ylabel('Joules')
+    plt.xlabel('Time elapsed (seconds)')
+    plt.stackplot(xAxis, PE_Spring_J, PE_PlungerTubePressure_J, PE_BarrelPressure_J, KE_PlungerTubeAir_J, KE_BarrelAir_J, TE_PlungerFriction_J, TE_DartFriction_J, TE_AirFriction_J, KE_Plunger_J, KE_Dart_J,
+        labels=['PE_Spring', 'PE_PlungerTubePressure', 'PE_BarrelPressure', 'KE_PlungerTubeAir', 'KE_BarrelAir', 'TE_PlungerFriction', 'TE_DartFriction', 'TE_AirFriction', 'KE_Plunger', 'KE_Dart'])
+    plt.legend(loc='lower right', markerscale=100)
+    fig.savefig('springerEnergy '+str(datetime.now().replace(microsecond=0)).replace(':','-')+'.png', bbox_inches='tight')
+
 
 iterationArray1 = np.arange(plungerDraw_m/2,plungerDraw_m,0.01)
 maxFPS = np.zeros(len(iterationArray1), dtype=float)
@@ -202,10 +245,9 @@ for j, v in enumerate(iterationArray1):
 #    simulate()
 simulate()
 
-plt.legend(loc='lower right', markerscale=100)
-fig.savefig('springerSim '+str(datetime.now().replace(microsecond=0)).replace(':','-')+'.png', bbox_inches='tight')
 
-plt.clf()
+
+
 '''
 plt.plot(iterationArray1*1000, maxFPS, label="max FPS")
 plt.plot(iterationArray1*1000, idealBarrelLength*1000, label="ideal barrel length, mm")
