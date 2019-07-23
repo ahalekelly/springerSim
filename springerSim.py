@@ -17,7 +17,7 @@ dartStaticFriction_N = 2 # N
 dartDynamicFriction_N = 1 # N
 
 dt_s = 0.00001 # s
-maxTime_s = 0.1 # s
+maxTime_s = 0.05 # s
 
 temperature_C = 25 # C
 
@@ -232,24 +232,26 @@ def simulate():
     plt.stackplot(xAxis, PE_Spring_J, PE_PlungerTubePressure_J, PE_BarrelPressure_J, KE_PlungerTubeAir_J, KE_BarrelAir_J, TE_PlungerFriction_J, TE_DartFriction_J, TE_AirFriction_J, KE_Plunger_J, KE_Dart_J,
         labels=['PE_Spring', 'PE_PlungerTubePressure', 'PE_BarrelPressure', 'KE_PlungerTubeAir', 'KE_BarrelAir', 'TE_PlungerFriction', 'TE_DartFriction', 'TE_AirFriction', 'KE_Plunger', 'KE_Dart'])
     plt.legend(loc='lower right', markerscale=100)
+    plt.ylim(ymin=0)
     fig.savefig('springerEnergyStacked '+str(datetime.now().replace(microsecond=0)).replace(':','-')+'.png', bbox_inches='tight')
-    plt.clf()
 
+    plt.clf()
     plt.ylabel('Joules')
     plt.xlabel('Time elapsed (seconds)')
     plt.plot(xAxis, PE_Spring_J, label="PE_Spring")
     plt.plot(xAxis, PE_PlungerTubePressure_J, label="PE_PlungerTubePressure")
-    plt.plot(xAxis, PE_BarrelPressure_J, label="PE_BarrelPressure") 
-    plt.plot(xAxis, PE_PlungerTubePressure_J+PE_BarrelPressure_J, label="PE_TotalPressure")
-    plt.plot(xAxis, KE_PlungerTubeAir_J, label="KE_PlungerTubeAir") 
+#    plt.plot(xAxis, PE_BarrelPressure_J, label="PE_BarrelPressure") 
+#    plt.plot(xAxis, PE_PlungerTubePressure_J+PE_BarrelPressure_J, label="PE_TotalPressure")
+#    plt.plot(xAxis, KE_PlungerTubeAir_J, label="KE_PlungerTubeAir") 
 #    plt.plot(xAxis, KE_BarrelAir_J) 
-    plt.plot(xAxis, TE_PlungerFriction_J, label="TE_PlungerFriction")
+#    plt.plot(xAxis, TE_PlungerFriction_J, label="TE_PlungerFriction")
 #    plt.plot(xAxis, TE_DartFriction_J) 
 #    plt.plot(xAxis, TE_AirFriction_J) 
     plt.plot(xAxis, KE_Plunger_J, label="KE_Plunger") 
 #    plt.plot(xAxis, KE_Dart_J)
     plt.plot(xAxis, totalEnergy_J-springPotentialEnergy_J, label="Error")
     plt.legend(loc='lower right', markerscale=100)
+    plt.ylim(ymin=0)
     fig.savefig('springerEnergyLines '+str(datetime.now().replace(microsecond=0)).replace(':','-')+'.png', bbox_inches='tight')
 
 
