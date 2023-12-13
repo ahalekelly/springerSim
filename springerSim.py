@@ -107,7 +107,8 @@ def simulate():
     effectivePlungerMass_kg = plungerRodMass_kg + springMass_kg/2
     springRate_Npm = springForce_N/plungerStart_m # N/m
     print(plungerStart_m, springRate_Npm)
-    plungerForce_N = plungerStart_m * springRate_Npm - plungerFriction_N
+#    plungerForce_N = plungerStart_m * springRate_Npm - plungerFriction_N # compression spring
+    plungerForce_N = springForce_N - plungerFriction_N # constant force spring
     springPotentialEnergy_J = 0.5*springRate_Npm*plungerStart_m**2-0.5*springRate_Npm*precompression_m**2
     
     times_s[0] = 0
@@ -125,7 +126,7 @@ def simulate():
     i=0
     airVolume = plungerVolumes_m3[0]+barrelVolumes_m3[0]
     
-    while dartPositions_m[i] < barrelLength_m and times_s[i] < maxTime_s and (dartVelocities_mps[i] > 0 or dartPositions_m[i] == 0) and plungerPositions_m[i] > precompression_m:
+    while dartPositions_m[i] < barrelLength_m and times_s[i] < maxTime_s and (dartVelocities_mps[i] > 0 or dartPositions_m[i] == 0):
         i += 1
         times_s[i] = times_s[i-1]+dt_s
     
@@ -159,15 +160,14 @@ def simulate():
 #        print("a", round(averagePressures_atm[i],2), "b", plungerVolumes_m3[i], "c", barrelVolumes_m3[i], "d", round(bernoulliPressureDifferences_atm[i],3), "x", round(plungerPressures_atm[i],2), "y", round(barrelPressures_atm[i],2))
 
         if plungerVelocities_mps[i] >= 0:
-            plungerForce_N = plungerPositions_m[i] * springRate_Npm \
+            plungerForce_N = springForce_N \
                 - plungerFriction_N \
                 - plungerPressures_atm[i] * pa * pi * plungerRadius_m**2
         else:
-            plungerForce_N = plungerPositions_m[i] * springRate_Npm \
+            plungerForce_N = springForce_N \
                 + plungerFriction_N \
                 - plungerPressures_atm[i] * pa * pi * plungerRadius_m**2
             
-        
         if dartVelocities_mps[i-1] > 0:
             dartForce = barrelPressures_atm[i] * pa * pi * barrelRadius_m**2 - dartDynamicFriction_N
         else:
@@ -205,24 +205,31 @@ def simulate():
     maxFPS[j] = np.amax(dartVelocities_mps[0:i])*ft
 #    maxP[j] = np.amax(pressures[0:i])*pa/1000
     idealBarrelLength[j] = dartPositions_m[np.argmax(dartVelocities_mps[0:i])]
+    try:
+        plungerStop_t = np.nonzero(plungerPositions_m <= precompression_m)[0][0]
+    except IndexError:
+        plungerStop_t = len(plungerPositions_m)
     print(round(maxFPS[j],3), "fps peak at", round(idealBarrelLength[j]*1000), "mm")
     print(round(springPotentialEnergy_J,2), "J", round(totalEnergy_J[i],2), "J")
+    print("plunger stops at", plungerStop_t)
 
     plt.ioff()
     fig = plt.figure(figsize=(18,12), dpi=600)
     plt.title('SpringerSim')
-    plt.ylabel('fps / mm / MPa')
-    variableName = "Plunger Draw: "+str(round(v*1000,1))+" mm "
-    xAxis = times_s
-    plt.xlabel('Time elapsed (seconds)')
-#    xAxis = dartPositions_m*ft*12
-#    plt.xlabel('Dart travel (inches)')
+    plt.ylabel('fps / mm / kPa')
+#    variableName = "Plunger Draw: "+str(round(v*1000,1))+" mm "
+    variableName = ""
+#    xAxis = times_s
+#    plt.xlabel('Time elapsed (seconds)')
+    xAxis = dartPositions_m*ft*12
+    plt.xlabel('Dart travel (inches)')
     plt.plot(xAxis, dartVelocities_mps*ft, label=variableName+"velocity, max "+str(round(maxFPS[j],1))+"fps @ "+str(round(idealBarrelLength[j]*1000))+" mm")
-    plt.plot(xAxis, (plungerPositions_m-precompression_m)*1000, label=variableName+"plunger position (mm)")
+    plt.plot(xAxis[:plungerStop_t], (plungerPositions_m[:plungerStop_t]-precompression_m)*1000, label=variableName+"plunger position (mm)")
 #    plt.plot(xAxis, dartPositions_m*200, label=variableName+"dart position (mm)")
-#    plt.plot(xAxis, pressures*pa/1000, label=variableName+"pressure (MPa)")
+    plt.plot(xAxis, barrelPressures_atm*101.325, label=variableName+"barrel pressure (kPa)")
+    plt.plot(xAxis, plungerPressures_atm*101.325, label=variableName+"plunger pressure (kPa)")
     
-    plt.legend(loc='lower right', markerscale=100)
+    plt.legend(loc='center right', markerscale=100)
     fig.savefig('springerSim '+str(datetime.now().replace(microsecond=0)).replace(':','-')+'.png', bbox_inches='tight')
 
     plt.clf()
@@ -272,7 +279,7 @@ plt.plot(iterationArray1*1000, maxFPS, label="max FPS")
 plt.plot(iterationArray1*1000, idealBarrelLength*1000, label="ideal barrel length, mm")
 #plt.plot(iterationArray1*1000, maxP*10, label="max pressure")
 plt.title('SpringerSim2')
-plt.ylabel('fps / mm / MPa')
+plt.ylabel('fps / mm / kPa')
 plt.xlabel('plunger draw (mm)')
 plt.legend(loc='lower right', markerscale=100)
 #plt.ylim(ymin=0)
